@@ -811,6 +811,7 @@ public class LeafQueue implements CSQueue {
       FiCaSchedulerApp application = 
           getApplication(reservedContainer.getApplicationAttemptId());
       synchronized (application) {
+    	  System.out.println("MMM assignContainer: reservedContainer != null " + node);
         return assignReservedContainer(application, node, reservedContainer,
           clusterResource);
       }
@@ -840,6 +841,8 @@ public class LeafQueue implements CSQueue {
 
           // Do we need containers at this 'priority'?
           if (!needContainers(application, priority, required)) {
+            System.out.println("MMM no needContainers " + node);
+
             continue;
           }
 
@@ -854,18 +857,25 @@ public class LeafQueue implements CSQueue {
           
           // Check queue max-capacity limit
           if (!assignToQueue(clusterResource, required)) {
+            System.out.println("MMM !assignToQueue " + node);
+
             return NULL_ASSIGNMENT;
+            
           }
 
           // Check user limit
           if (!assignToUser(
               clusterResource, application.getUser(), userLimit)) {
+            System.out.println("MMM !assignToUser");
+
             break; 
           }
 
           // Inform the application it is about to get a scheduling opportunity
           application.addSchedulingOpportunity(priority);
           
+          System.out.println("MMM Try to schedule");
+
           // Try to schedule
           CSAssignment assignment =  
             assignContainersOnNode(clusterResource, node, application, priority, 
@@ -924,6 +934,7 @@ public class LeafQueue implements CSQueue {
       return new CSAssignment(application, rmContainer);
     }
 
+    System.out.println("MMM assignReservedContainer");
     // Try to assign if we have sufficient resources
     assignContainersOnNode(clusterResource, node, application, priority, 
         rmContainer);
@@ -1110,15 +1121,16 @@ public class LeafQueue implements CSQueue {
                 (1.0f - (Math.min(nodeFactor, getMinimumAllocationFactor())))
                );
       
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("needsContainers:" +
+     // if (LOG.isDebugEnabled()) {
+        System.out.println("needsContainers:(" + priority + ")" +
             " app.#re-reserve=" + application.getReReservations(priority) + 
             " reserved=" + reservedContainers + 
             " nodeFactor=" + nodeFactor + 
             " minAllocFactor=" + getMinimumAllocationFactor() +
             " starvation=" + starvation);
-      }
+     // }
     }
+    System.out.println("MMM (" + priority + ") " + starvation + " + " + requiredContainers + " - " + reservedContainers);
     return (((starvation + requiredContainers) - reservedContainers) > 0);
   }
 
@@ -1127,6 +1139,8 @@ public class LeafQueue implements CSQueue {
       Priority priority, RMContainer reservedContainer) {
 
     Resource assigned = Resources.none();
+    System.out.println("MMM assignContainerOnNode");
+
 
     // Data-local
     ResourceRequest nodeLocalResourceRequest =
@@ -1181,6 +1195,7 @@ public class LeafQueue implements CSQueue {
       Priority priority, RMContainer reservedContainer) {
     if (canAssign(application, priority, node, NodeType.NODE_LOCAL, 
         reservedContainer)) {
+      System.out.println("MMM assignNodeLocalContainer");
       return assignContainer(clusterResource, node, application, priority, 
           nodeLocalResourceRequest, NodeType.NODE_LOCAL, reservedContainer);
     }
@@ -1369,6 +1384,7 @@ public class LeafQueue implements CSQueue {
       return container.getResource();
     } else {
       // Reserve by 'charging' in advance...
+      System.out.println("MMM assignContainer before reserve");
       reserve(application, priority, node, rmContainer, container);
 
       LOG.info("Reserved container " + 

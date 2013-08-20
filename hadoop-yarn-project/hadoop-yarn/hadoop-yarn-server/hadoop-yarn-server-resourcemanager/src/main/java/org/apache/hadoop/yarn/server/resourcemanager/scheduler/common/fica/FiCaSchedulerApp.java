@@ -399,6 +399,7 @@ public class FiCaSchedulerApp extends SchedulerApplication {
       RMContainer rmContainer, Container container) {
     // Create RMContainer if necessary
     if (rmContainer == null) {
+      System.out.println("MMM reserve: rmContainer == null");
       rmContainer = 
           new RMContainerImpl(container, getApplicationAttemptId(), 
               node.getNodeID(), rmContext.getDispatcher().getEventHandler(), 
@@ -411,6 +412,7 @@ public class FiCaSchedulerApp extends SchedulerApplication {
     } else {
       // Note down the re-reservation
       addReReservation(priority);
+      System.out.println("MMM reserve: rmContainer == null " + getReReservations(priority));
     }
     rmContainer.handle(new RMContainerReservedEvent(container.getId(), 
         container.getResource(), node.getNodeID(), priority));

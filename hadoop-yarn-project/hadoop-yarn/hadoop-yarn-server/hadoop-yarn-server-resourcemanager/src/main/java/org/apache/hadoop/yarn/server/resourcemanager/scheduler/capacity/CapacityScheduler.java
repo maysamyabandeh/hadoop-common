@@ -758,8 +758,13 @@ public class CapacityScheduler
     }
   }
 
+  //for testing
+  protected FiCaSchedulerNode newSchedulerNode(RMNode rmNode) {
+    return new FiCaSchedulerNode(rmNode); 
+  }
+  
   private synchronized void addNode(RMNode nodeManager) {
-    this.nodes.put(nodeManager.getNodeID(), new FiCaSchedulerNode(nodeManager));
+    this.nodes.put(nodeManager.getNodeID(), newSchedulerNode(nodeManager));
     Resources.addTo(clusterResource, nodeManager.getTotalCapability());
     root.updateClusterResource(clusterResource);
     ++numNodeManagers;
