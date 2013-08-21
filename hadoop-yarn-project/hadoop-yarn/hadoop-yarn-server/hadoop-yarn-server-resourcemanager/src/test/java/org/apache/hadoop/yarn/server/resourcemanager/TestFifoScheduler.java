@@ -43,6 +43,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Allocation;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNodeReport;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSchedulerEvent;
@@ -69,8 +70,10 @@ public class TestFifoScheduler {
   @BeforeClass
   public static void setup() {
     conf = new YarnConfiguration();
+//    conf.setClass(YarnConfiguration.RM_SCHEDULER, 
+//        FifoScheduler.class, ResourceScheduler.class);
     conf.setClass(YarnConfiguration.RM_SCHEDULER, 
-        FifoScheduler.class, ResourceScheduler.class);
+        CapacityScheduler.class, ResourceScheduler.class);
   }
 
   @Test (timeout = 30000)
@@ -177,6 +180,44 @@ public class TestFifoScheduler {
     report_nm1 = rm.getResourceScheduler().getNodeReport(nm1.getNodeId());
     Assert.assertEquals(5 * GB, report_nm1.getUsedResource().getMemory());
 
+    rm.stop();
+  }
+
+  @Test
+  public void testCapacitySch() throws Exception {
+    Logger rootLogger = LogManager.getRootLogger();
+    rootLogger.setLevel(Level.DEBUG);
+    MockRM rm = new MockRM(conf);
+    rm.start();
+    MockNM nm1 = rm.registerNode("127.0.0.1:1234", 4 * GB);
+    MockNM nm2 = rm.registerNode("127.0.0.2:5678", 4 * GB);
+
+    RMApp app1 = rm.submitApp(1024);
+    // kick the scheduling, 2 GB given to AM1, remaining 4GB on nm1
+    nm1.nodeHeartbeat(true);
+    RMAppAttempt attempt1 = app1.getCurrentAppAttempt();
+    MockAM am1 = rm.sendAMLaunched(attempt1.getAppAttemptId());
+    am1.registerAppAttempt();
+    SchedulerNodeReport report_nm1 = rm.getResourceScheduler().getNodeReport(
+        nm1.getNodeId());
+    Assert.assertEquals(1 * GB, report_nm1.getUsedResource().getMemory());
+
+    // add request for containers
+    am1.addRequests(new String[] { "127.0.0.1", "127.0.0.2" }, 4  * GB, 1, 1);
+    AllocateResponse alloc1Response = am1.schedule(); // send the request
+
+    // kick the scheduler, 1 GB and 3 GB given to AM1 and AM2, remaining 0
+    nm1.nodeHeartbeat(true);
+    Thread.sleep(1000);
+    nm1.nodeHeartbeat(true);
+    Thread.sleep(1000);
+    nm1.nodeHeartbeat(true);
+    Thread.sleep(1000);
+
+    nm2.nodeHeartbeat(true);
+    Thread.sleep(1000);
+    alloc1Response = am1.schedule();
+    Assert.assertEquals(1, alloc1Response.getAllocatedContainers().size());
     rm.stop();
   }
 
